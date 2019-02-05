@@ -30,7 +30,7 @@ for file in file_list:
 
 #print(albums.keys())
 album_choice = random.choice(list(albums.keys()))
-print(album_choice)
+print(album_choice+'\n')
 
 album_tracks = albums[album_choice]
 #for track in album_tracks:
@@ -47,19 +47,19 @@ for track_file in album_tracks:
 		for track_number in track[u'TRCK']:
 			#print(track_number)
 			actual_number = int(track_number.split('/')[0])
-			print(actual_number)
+			#print(actual_number)
 			by_track_dict[actual_number] = str(track_file)
 	elif u'TPOS' in track:
 		for track_number in track[u'TPOS']:
 			#print(track_number)
 			actual_number = int(track_number.split('/')[0])
-			print(actual_number)
+			#print(actual_number)
 			by_track_dict[actual_number] = str(track_file)
 	elif u'TRACKNUMBER' in track:
 		for track_number in track[u'TRACKNUMBER']:
 			#print(track_number)
 			actual_number = int(track_number.split('/')[0])
-			print(actual_number)
+			#print(actual_number)
 			by_track_dict[actual_number] = str(track_file)
 	else:
 		print(track.pprint())
@@ -73,5 +73,5 @@ else:
 	params = sorted(params)
 
 params.insert(0, 'VLC')
-print(params)
-vlc_process = subprocess.Popen(params)
+#print(params)
+vlc_process = subprocess.Popen(params, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

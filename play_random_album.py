@@ -3,6 +3,7 @@ import os
 import random
 from pathlib import Path
 import subprocess
+import re
 
 all_tracks = []
 albums = {}
@@ -39,6 +40,7 @@ album_tracks = albums[album_choice]
 #os.remove('random_album.m3u')
 #playlist_file = open('random_album.m3u', 'x')
 by_track_dict = {}
+track_suggestion_dict = {}
 params = []
 for track_file in album_tracks:
 	track = mutagen.File(track_file.absolute())
@@ -62,8 +64,27 @@ for track_file in album_tracks:
 			#print(actual_number)
 			by_track_dict[actual_number] = str(track_file)
 	else:
-		print(track.pprint())
+		#could not find track number, try to figure it out
+		regex = re.search('^\d+', os.path.basename(str(track_file)))
+		if regex is not None:
+			maybe_track_number = int(regex.group())
+			track_suggestion_dict[maybe_track_number] = {'file': track_file, 'muta_file':track}
+
 	params.append(str(track_file))
+
+if len(track_suggestion_dict) > 0:
+	print('tracks were missing numbers, are these track numbers correct? (y/n)')
+	for track_num, track_dict in track_suggestion_dict.items():
+		print('{0} : {1}'.format(track_num, str(track_dict['file'])))
+	answer = input()
+	if answer == 'y':
+		for track_num, track_dict in track_suggestion_dict.items():
+			if isinstance(track_dict['muta_file'], mutagen.flac.FLAC):
+				track_dict['muta_file']['TRACKNUMBER'] = track_num
+			if isinstance(track_dict['muta_file'], mutagen.id3.ID3FileType):
+				track_dict['muta_file'].tags['TRCK'] = mutagen.id3.TRCK(encoding=mutagen.id3.Encoding.LATIN1, text=u'{0}'.format(track_num))
+				print(track_dict['muta_file'].tags)
+			track_dict['muta_file'].save()
 
 if len(by_track_dict) > 0:
 	params.clear()

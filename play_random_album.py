@@ -73,7 +73,7 @@ class Track:
 				self.muta_file['TRACKNUMBER'] = self.suggested_track_number
 			if isinstance(self.muta_file, mutagen.id3.ID3FileType):
 				self.muta_file.tags['TRCK'] = mutagen.id3.TRCK(encoding=mutagen.id3.Encoding.LATIN1, text=u'{0}'.format(self.suggested_track_number))
-				print(track_dict['muta_file'].tags)
+				#print(self.muta_file.tags)
 			self.muta_file.save()
 
 def play_album_in_vlc(album):

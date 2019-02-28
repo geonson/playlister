@@ -13,7 +13,13 @@ class Album:
 		self.track_list = []
 
 	def add_track(self, track):
-		self.track_list.append(track)
+		already_has = False
+		for existing_track in self.track_list:
+			if str(existing_track.file_object) == str(track.file_object):
+				already_has = True
+				break
+		if not already_has:
+			self.track_list.append(track)
 
 	def find_track_numbers(self):
 		track_suggestions = False
@@ -62,6 +68,9 @@ class Track:
 		elif u'TALB' in self.get_muta_file():
 			for album_name in self.get_muta_file()[u'TALB']:
 				album_names.append(album_name)
+		elif u'WM/AlbumTitle' in self.get_muta_file():
+			for album_name in self.get_muta_file()[u'WM/AlbumTitle']:
+				album_names.append(album_name.value)
 		return album_names
 
 	def find_actual_track_number(self):
@@ -80,6 +89,10 @@ class Track:
 			for track_number in self.get_muta_file()[u'TRACKNUMBER']:
 				actual_number = int(track_number.split('/')[0])
 				self.actual_track_number = actual_number
+		elif u'WM/TrackNumber' in self.get_muta_file():
+			for track_number in self.get_muta_file()[u'WM/TrackNumber']:
+				actual_number = int(track_number.value.split('/')[0])
+				self.actual_track_number = actual_number
 		else:
 			#could not find track number, try to figure it out
 			regex = re.search('^\d+', os.path.basename(str(self.file_object)))
@@ -95,7 +108,8 @@ class Track:
 				self.get_muta_file()['TRACKNUMBER'] = self.suggested_track_number
 			if isinstance(self.get_muta_file(), mutagen.id3.ID3FileType):
 				self.get_muta_file().tags['TRCK'] = mutagen.id3.TRCK(encoding=mutagen.id3.Encoding.LATIN1, text=u'{0}'.format(self.suggested_track_number))
-				#print(self.get_muta_file().tags)
+			if isinstance(self.get_muta_file(), mutagen.asf.ASF):
+				self.get_muta_file().tags['WM/TrackNumber'] = mutagen.asf.ASFUnicodeAttribute(u'{0}'.format(self.suggested_track_number))
 			self.get_muta_file().save()
 			self.suggested_track_number = None
 
@@ -118,44 +132,48 @@ args = parser.parse_args()
 if args.all:
 	print('Playing All Albums')
 
-all_tracks = []
-all_albums = {}
+tracks_by_filename = {}
+albums_by_name = {}
 
-if args.reimport or not os.path.isfile('library'):
-	root_dir = Path('.')
-	file_list = [f for f in root_dir.glob('**/*') if f.is_file()]
-	for file in file_list:
-		pathstring = file.absolute()
-		muta_file = mutagen.File(pathstring)
+if os.path.isfile('library'):
+	library_file = open('library', 'rb')
+	tracks_by_filename = pickle.load(library_file)
+	albums_by_name = pickle.load(library_file)
+	library_file.close()
+
+root_dir = Path('.')
+file_list = [f for f in root_dir.glob('**/*') if f.is_file()]
+for file in file_list:
+	if args.reimport or str(file) not in tracks_by_filename:
+		muta_file = mutagen.File(file.absolute())
 		if muta_file is not None:
+			print('importing track to library '+str(file))
+			#print(muta_file)
 			track = Track(file, muta_file)
-			#print(muta_file.info)
-			all_tracks.append(track)
+			tracks_by_filename[str(file)] = track
 			album_names = track.get_album_names()
 			for album_name in album_names:
-				if album_name not in all_albums:
-					all_albums[album_name] = Album(album_name)
-				all_albums[album_name].add_track(track)
-	library_file = open('library', 'wb')
-	pickle.dump(all_albums, library_file)
-	library_file.close()
-else:
-	library_file = open('library', 'rb')
-	all_albums = pickle.load(library_file)
-	library_file.close()
+				if album_name not in albums_by_name:
+					albums_by_name[album_name] = Album(album_name)
+				albums_by_name[album_name].add_track(track)
 
-#print(all_albums.keys())
+library_file = open('library', 'wb')
+pickle.dump(tracks_by_filename, library_file)
+pickle.dump(albums_by_name, library_file)
+library_file.close()
+
+#print(albums_by_name.keys())
 
 if args.all:
-	alblum_play_list = list(all_albums.keys())
+	alblum_play_list = list(albums_by_name.keys())
 	random.shuffle(alblum_play_list)
 	for chosen_album_name in alblum_play_list:
-		print(chosen_album_name+'\n')
-		chosen_album = all_albums[chosen_album_name]
+		print('\nPlaying Album\n'+chosen_album_name+'\n')
+		chosen_album = albums_by_name[chosen_album_name]
 		vlc_process = play_album_in_vlc(chosen_album)
 		vlc_process.wait()
 else:
-	chosen_album_name = random.choice(list(all_albums.keys()))
-	print(chosen_album_name+'\n')
-	chosen_album = all_albums[chosen_album_name]
+	chosen_album_name = random.choice(list(albums_by_name.keys()))
+	print('\nPlaying Album\n'+chosen_album_name+'\n')
+	chosen_album = albums_by_name[chosen_album_name]
 	vlc_process = play_album_in_vlc(chosen_album)

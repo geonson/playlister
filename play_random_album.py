@@ -141,6 +141,8 @@ if os.path.isfile('library'):
 	albums_by_name = pickle.load(library_file)
 	library_file.close()
 
+library_changed = False
+
 root_dir = Path('.')
 file_list = [f for f in root_dir.glob('**/*') if f.is_file()]
 for file in file_list:
@@ -156,11 +158,13 @@ for file in file_list:
 				if album_name not in albums_by_name:
 					albums_by_name[album_name] = Album(album_name)
 				albums_by_name[album_name].add_track(track)
+			library_changed = True
 
-library_file = open('library', 'wb')
-pickle.dump(tracks_by_filename, library_file)
-pickle.dump(albums_by_name, library_file)
-library_file.close()
+if library_changed:
+	library_file = open('library', 'wb')
+	pickle.dump(tracks_by_filename, library_file)
+	pickle.dump(albums_by_name, library_file)
+	library_file.close()
 
 #print(albums_by_name.keys())
 

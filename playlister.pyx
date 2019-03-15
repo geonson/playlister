@@ -70,9 +70,29 @@ class Track:
             self.album_name = album_names[0]
         else:
             self.album_name = ''
-        #TODO: fill these in from muta file
-        self.artist = None
-        self.title = None
+        if isinstance(self.get_muta_file(), mutagen.flac.FLAC):
+            self.artist = self.get_muta_file().tags['ARTIST'][0]
+            self.title = self.get_muta_file().tags['TITLE'][0]
+        elif isinstance(self.get_muta_file(), mutagen.id3.ID3FileType):
+            if self.get_muta_file().tags is not None:
+                if 'TPE1' in self.get_muta_file().tags:
+                    self.artist = self.get_muta_file().tags['TPE1'][0]
+                elif 'TPE2' in self.get_muta_file().tags:
+                    self.artist = self.get_muta_file().tags['TPE2'][0]
+                elif 'TCOM' in self.get_muta_file().tags:
+                    self.artist = self.get_muta_file().tags['TCOM'][0]
+                else:
+                    self.artist = ''
+                self.title = self.get_muta_file().tags['TIT2'][0]
+            else:
+                self.artist = ''
+                self.title = ''
+        elif isinstance(self.get_muta_file(), mutagen.asf.ASF):
+            self.artist = self.get_muta_file().tags['Author'][0].value
+            self.title = self.get_muta_file().tags['Title'][0].value
+        else:
+            self.artist = ''
+            self.title = ''
 
     def __getstate__(self):
         state = {}
@@ -175,7 +195,7 @@ args = parser.parse_args()
 #print(args)
 
 library_filename = 'library'
-if args.lib is not None and os.path.isfile(args.lib):
+if args.lib is not None:
     library_filename = args.lib
 
 tracks_by_filename = {}

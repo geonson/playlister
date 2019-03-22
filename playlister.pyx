@@ -7,35 +7,21 @@ import re
 import argparse
 import pickle
 
-class Album:
-    def __init__(self, name):
-        self.name  = name
-        self.track_list = []
-
-    def add_track(self, track):
-        already_has = False
-        for existing_track in self.track_list:
-            if str(existing_track.file_object) == str(track.file_object):
-                already_has = True
-                break
-        if not already_has:
-            self.track_list.append(track)
-
-    def find_track_numbers(self):
-        track_suggestions = False
-        for track in self.track_list:
+def find_track_numbers(track_list):
+    track_suggestions = False
+    for track in track_list:
+        if track.suggested_track_number is not None:
+            track_suggestions = True
+            break
+    if track_suggestions:
+        print('tracks were missing numbers, are these track numbers correct? (y/n)')
+        for track in track_list:
             if track.suggested_track_number is not None:
-                track_suggestions = True
-                break
-        if track_suggestions:
-            print('tracks were missing numbers, are these track numbers correct? (y/n)')
-            for track in self.track_list:
-                if track.suggested_track_number is not None:
-                    print('{0} : {1}'.format(track.suggested_track_number, str(track.file_object)))
-            answer = input()
-            if answer == 'y':
-                for track in self.track_list:
-                    track.save_suggested_track_number()
+                print('{0} : {1}'.format(track.suggested_track_number, str(track.file_object)))
+        answer = input()
+        if answer == 'y':
+            for track in track_list:
+                track.save_suggested_track_number()
 
 class Track:
     def __init__(self, file_object, muta_file):
@@ -154,11 +140,18 @@ class Track:
 def play_tracks_in_vlc(track_list):
     params = []
     for track in track_list:
-        params.append(str(track.file_object))
-    params.insert(0, 'VLC')
-    params.insert(1, '--play-and-exit')
-    vlc_process = subprocess.Popen(params, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return vlc_process
+        if os.path.isfile(str(track.file_object)):
+            params.append(str(track.file_object))
+        else:
+            #no file to play, should remove track object from master list
+            pass
+    if len(params) > 0:
+        params.insert(0, 'VLC')
+        params.insert(1, '--play-and-exit')
+        vlc_process = subprocess.Popen(params, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return vlc_process
+    else:
+        return None
 
 def validpathtype(arg):
     if os.path.isdir(arg):
@@ -199,12 +192,10 @@ if args.lib is not None:
     library_filename = args.lib
 
 tracks_by_filename = {}
-albums_by_name = {}
 
 if os.path.isfile(library_filename):
     library_file = open(library_filename, 'rb')
     tracks_by_filename = pickle.load(library_file)
-    albums_by_name = pickle.load(library_file)
     library_file.close()
 
 salt = random.randint(0, 999999999)
@@ -253,7 +244,7 @@ if args.command == 'play':
                 group_end = i
                 print('\nPlaying {0}\n{1}\n'.format(args.aspect[0], current_first_prop))
                 vlc_process = play_tracks_in_vlc(play_list[group_start:group_end])
-                if args.all and i+1 < len(play_list):
+                if args.all and i+1 < len(play_list) and vlc_process is not None:
                     vlc_process.wait()
             group_start = i
             current_first_prop = prop
@@ -271,17 +262,11 @@ elif args.command == 'import':
                 #print(muta_file)
                 track = Track(file, muta_file)
                 tracks_by_filename[str(file)] = track
-                album_names = track.get_album_names()
-                for album_name in album_names:
-                    if album_name not in albums_by_name:
-                        albums_by_name[album_name] = Album(album_name)
-                    albums_by_name[album_name].add_track(track)
                 library_changed = True
 
     if library_changed:
         library_file = open(library_filename, 'wb')
         pickle.dump(tracks_by_filename, library_file)
-        pickle.dump(albums_by_name, library_file)
         library_file.close()
 
 elif args.command == 'tag':

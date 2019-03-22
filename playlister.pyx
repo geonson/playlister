@@ -27,58 +27,55 @@ class Track:
     def __init__(self, file_object, muta_file):
         self.file_object = file_object
         self.muta_file = muta_file
+        self.artist = ''
+        self.title = ''
+        self.album_name = ''
         self.actual_track_number = 0
         self.suggested_track_number = None
-        if u'TRCK' in self.get_muta_file():
-            for track_number in self.get_muta_file()[u'TRCK']:
-                actual_number = int(track_number.split('/')[0])
-                self.actual_track_number = actual_number
-        elif u'TPOS' in self.get_muta_file():
-            for track_number in self.get_muta_file()[u'TPOS']:
-                actual_number = int(track_number.split('/')[0])
-                self.actual_track_number = actual_number
-        elif u'TRACKNUMBER' in self.get_muta_file():
-            for track_number in self.get_muta_file()[u'TRACKNUMBER']:
-                actual_number = int(track_number.split('/')[0])
-                self.actual_track_number = actual_number
-        elif u'WM/TrackNumber' in self.get_muta_file():
-            for track_number in self.get_muta_file()[u'WM/TrackNumber']:
-                actual_number = int(track_number.value.split('/')[0])
-                self.actual_track_number = actual_number
+        track_number = None
+        if isinstance(self.muta_file, mutagen.flac.FLAC):
+            self.artist = self.muta_file.tags['ARTIST'][0]
+            self.title = self.muta_file.tags['TITLE'][0]
+            self.album_name = self.muta_file.tags['Album'][0]
+            track_number = self.muta_file.tags['TRACKNUMBER'][0]
+
+        elif isinstance(self.muta_file, mutagen.id3.ID3FileType):
+            if self.muta_file.tags is not None:
+                if 'TPE1' in self.muta_file.tags:
+                    self.artist = self.muta_file.tags['TPE1'][0]
+                elif 'TPE2' in self.muta_file.tags:
+                    self.artist = self.muta_file.tags['TPE2'][0]
+                elif 'TCOM' in self.muta_file.tags:
+                    self.artist = self.muta_file.tags['TCOM'][0]
+
+                if 'TIT2' in self.muta_file.tags:
+                    self.title = self.muta_file.tags['TIT2'][0]
+
+                if 'TALB' in self.muta_file.tags:
+                    self.album_name = self.muta_file.tags['TALB'][0]
+                    
+                if 'TRCK' in self.muta_file.tags:
+                    track_number = self.muta_file.tags['TRCK'][0]
+                elif 'TPOS' in self.muta_file.tags:
+                    track_number = self.muta_file.tags['TPOS'][0]
+
+        elif isinstance(self.muta_file, mutagen.asf.ASF):
+            self.artist = self.muta_file.tags['Author'][0].value
+            self.title = self.muta_file.tags['Title'][0].value
+            self.album_name = self.muta_file.tags['WM/AlbumTitle'][0].value
+            track_number = self.muta_file.tags['WM/TrackNumber'][0].value
+
+        else:
+            print('tag parsing not yet supported for type {0}'.format(self.muta_file.__class__.__name__))
+
+        if track_number is not None:
+            self.actual_track_number = int(track_number.split('/')[0])
         else:
             #could not find track number, try to figure it out
             regex = re.search('^\d+', os.path.basename(str(self.file_object)))
             if regex is not None:
                 maybe_track_number = int(regex.group())
                 self.suggested_track_number = maybe_track_number
-        album_names = self.get_album_names()
-        if len(album_names) > 0:
-            self.album_name = album_names[0]
-        else:
-            self.album_name = ''
-        if isinstance(self.get_muta_file(), mutagen.flac.FLAC):
-            self.artist = self.get_muta_file().tags['ARTIST'][0]
-            self.title = self.get_muta_file().tags['TITLE'][0]
-        elif isinstance(self.get_muta_file(), mutagen.id3.ID3FileType):
-            if self.get_muta_file().tags is not None:
-                if 'TPE1' in self.get_muta_file().tags:
-                    self.artist = self.get_muta_file().tags['TPE1'][0]
-                elif 'TPE2' in self.get_muta_file().tags:
-                    self.artist = self.get_muta_file().tags['TPE2'][0]
-                elif 'TCOM' in self.get_muta_file().tags:
-                    self.artist = self.get_muta_file().tags['TCOM'][0]
-                else:
-                    self.artist = ''
-                self.title = self.get_muta_file().tags['TIT2'][0]
-            else:
-                self.artist = ''
-                self.title = ''
-        elif isinstance(self.get_muta_file(), mutagen.asf.ASF):
-            self.artist = self.get_muta_file().tags['Author'][0].value
-            self.title = self.get_muta_file().tags['Title'][0].value
-        else:
-            self.artist = ''
-            self.title = ''
 
     def __getstate__(self):
         state = {}
@@ -98,32 +95,6 @@ class Track:
         self.album_name = state['album_name']
         self.artist = state['artist']
         self.title = state['title']
-
-    def get_muta_file(self):
-        if self.muta_file is None:
-            self.muta_file = mutagen.File(self.file_object.absolute())
-        return self.muta_file
-
-    def get_album_names(self):
-        album_names = []
-        if u'Album' in self.get_muta_file():
-            for album_name in self.get_muta_file()[u'Album']:
-                album_names.append(album_name)
-        elif u'TALB' in self.get_muta_file():
-            for album_name in self.get_muta_file()[u'TALB']:
-                album_names.append(album_name)
-        elif u'WM/AlbumTitle' in self.get_muta_file():
-            for album_name in self.get_muta_file()[u'WM/AlbumTitle']:
-                album_names.append(album_name.value)
-        return album_names
-
-    def get_artist(self):
-        if isinstance(self.get_muta_file(), mutagen.flac.FLAC):
-            return self.get_muta_file()['TRACKNUMBER']
-        if isinstance(self.get_muta_file(), mutagen.id3.ID3FileType):
-            return self.get_muta_file().tags['TRCK']
-        if isinstance(self.get_muta_file(), mutagen.asf.ASF):
-            return self.get_muta_file().tags['WM/']
 
     def save_suggested_track_number(self):
         if self.suggested_track_number is not None:

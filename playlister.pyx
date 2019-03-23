@@ -108,22 +108,6 @@ class Track:
             self.actual_track_number = self.suggested_track_number
             self.suggested_track_number = None
 
-def play_tracks_in_vlc(track_list):
-    params = []
-    for track in track_list:
-        if os.path.isfile(str(track.file_object)):
-            params.append(str(track.file_object))
-        else:
-            #no file to play, should remove track object from master list
-            pass
-    if len(params) > 0:
-        params.insert(0, 'VLC')
-        params.insert(1, '--play-and-exit')
-        vlc_process = subprocess.Popen(params, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return vlc_process
-    else:
-        return None
-
 def validpathtype(arg):
     if os.path.isdir(arg):
         return arg
@@ -200,21 +184,41 @@ if args.command == 'play':
     i = 0
     current_first_prop = None
     group_end = 0
-    while (args.all or group_end == 0) and i < len(play_list):
-        track = play_list[i]
-        if args.aspect[0].startswith('album'):
-            prop = track.album_name
-        elif args.aspect[0].startswith('artist'):
-            prop = track.artist
-        elif args.aspect[0].startswith('track'):
-            prop = track.actual_track_number
-        elif args.aspect[0].startswith('title'):
-            prop = track.title
+    while (args.all or group_end == 0) and i <= len(play_list):
+        if i < len(play_list):
+            track = play_list[i]
+            if args.aspect[0].startswith('album'):
+                prop = track.album_name
+            elif args.aspect[0].startswith('artist'):
+                prop = track.artist
+            elif args.aspect[0].startswith('track'):
+                prop = track.actual_track_number
+            elif args.aspect[0].startswith('title'):
+                prop = track.title
+        else:
+            prop = ''
         if current_first_prop != prop:
             if i > 0:
                 group_end = i
                 print('\nPlaying {0}\n{1}\n'.format(args.aspect[0], current_first_prop))
-                vlc_process = play_tracks_in_vlc(play_list[group_start:group_end])
+
+                vlc_process = None
+                params = []
+                for track in play_list[group_start:group_end]:
+                    if os.path.isfile(str(track.file_object)):
+                        params.append(str(track.file_object))
+                    else:
+                        #no file to play, should remove track object from master list
+                        print('no file found, removing from library {0}'.format(str(track.file_object)))
+                        del tracks_by_filename[str(track.file_object)]
+                        library_file = open(library_filename, 'wb')
+                        pickle.dump(tracks_by_filename, library_file)
+                        library_file.close()
+                if len(params) > 0:
+                    params.insert(0, 'VLC')
+                    params.insert(1, '--play-and-exit')
+                    vlc_process = subprocess.Popen(params, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
                 if args.all and i+1 < len(play_list) and vlc_process is not None:
                     vlc_process.wait()
             group_start = i

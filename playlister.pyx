@@ -204,6 +204,7 @@ if args.command == 'play':
 
                 vlc_process = None
                 params = []
+                library_changed = False
                 for track in play_list[group_start:group_end]:
                     if os.path.isfile(str(track.file_object)):
                         params.append(str(track.file_object))
@@ -211,13 +212,18 @@ if args.command == 'play':
                         #no file to play, should remove track object from master list
                         print('no file found, removing from library {0}'.format(str(track.file_object)))
                         del tracks_by_filename[str(track.file_object)]
-                        library_file = open(library_filename, 'wb')
-                        pickle.dump(tracks_by_filename, library_file)
-                        library_file.close()
+                        library_changed = True
                 if len(params) > 0:
                     params.insert(0, 'VLC')
                     params.insert(1, '--play-and-exit')
-                    vlc_process = subprocess.Popen(params, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    try:
+                        vlc_process = subprocess.Popen(params, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    except OSError:
+                        print('unable to start VLC process. Make sure VLC is installed and added to PATH')
+                if library_changed:
+                    library_file = open(library_filename, 'wb')
+                    pickle.dump(tracks_by_filename, library_file)
+                    library_file.close()
 
                 if args.all and i+1 < len(play_list) and vlc_process is not None:
                     vlc_process.wait()

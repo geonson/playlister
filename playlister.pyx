@@ -7,22 +7,6 @@ import re
 import argparse
 import pickle
 
-def find_track_numbers(track_list):
-    track_suggestions = False
-    for track in track_list:
-        if track.suggested_track_number is not None:
-            track_suggestions = True
-            break
-    if track_suggestions:
-        print('tracks were missing numbers, are these track numbers correct? (y/n)')
-        for track in track_list:
-            if track.suggested_track_number is not None:
-                print('{0} : {1}'.format(track.suggested_track_number, str(track.file_object)))
-        answer = input()
-        if answer == 'y':
-            for track in track_list:
-                track.save_suggested_track_number()
-
 class Track:
     def __init__(self, file_object, muta_file):
         self.file_object = file_object
@@ -31,7 +15,6 @@ class Track:
         self.title = ''
         self.album_name = ''
         self.actual_track_number = 0
-        self.suggested_track_number = None
         track_number = None
         if isinstance(self.muta_file, mutagen.flac.FLAC):
             self.artist = self.muta_file.tags['ARTIST'][0]
@@ -70,18 +53,11 @@ class Track:
 
         if track_number is not None:
             self.actual_track_number = int(track_number.split('/')[0])
-        else:
-            #could not find track number, try to figure it out
-            regex = re.search('^\d+', os.path.basename(str(self.file_object)))
-            if regex is not None:
-                maybe_track_number = int(regex.group())
-                self.suggested_track_number = maybe_track_number
 
     def __getstate__(self):
         state = {}
         state['file_object'] = self.file_object
         state['actual_track_number'] = self.actual_track_number
-        state['suggested_track_number'] = self.suggested_track_number
         state['album_name'] = self.album_name
         state['artist'] = self.artist
         state['title'] = self.title
@@ -91,22 +67,21 @@ class Track:
         self.file_object = state['file_object']
         self.muta_file = None
         self.actual_track_number = state['actual_track_number']
-        self.suggested_track_number = state['suggested_track_number']
         self.album_name = state['album_name']
         self.artist = state['artist']
         self.title = state['title']
 
-    def save_suggested_track_number(self):
-        if self.suggested_track_number is not None:
-            if isinstance(self.get_muta_file(), mutagen.flac.FLAC):
-                self.get_muta_file()['TRACKNUMBER'] = self.suggested_track_number
-            if isinstance(self.get_muta_file(), mutagen.id3.ID3FileType):
-                self.get_muta_file().tags['TRCK'] = mutagen.id3.TRCK(encoding=mutagen.id3.Encoding.LATIN1, text=u'{0}'.format(self.suggested_track_number))
-            if isinstance(self.get_muta_file(), mutagen.asf.ASF):
-                self.get_muta_file().tags['WM/TrackNumber'] = mutagen.asf.ASFUnicodeAttribute(u'{0}'.format(self.suggested_track_number))
-            self.get_muta_file().save()
-            self.actual_track_number = self.suggested_track_number
-            self.suggested_track_number = None
+    def save_new_track_number(self, track_number):
+        if self.muta_file is None:
+            self.muta_file = mutagen.File(self.file_object.absolute())
+        if isinstance(self.muta_file, mutagen.flac.FLAC):
+            self.muta_file['TRACKNUMBER'] = track_number
+        if isinstance(self.muta_file, mutagen.id3.ID3FileType):
+            self.muta_file.tags['TRCK'] = mutagen.id3.TRCK(encoding=mutagen.id3.Encoding.LATIN1, text=u'{0}'.format(track_number))
+        if isinstance(self.muta_file, mutagen.asf.ASF):
+            self.muta_file.tags['WM/TrackNumber'] = mutagen.asf.ASFUnicodeAttribute(u'{0}'.format(track_number))
+        self.muta_file.save()
+        self.actual_track_number = track_number
 
 def validpathtype(arg):
     if os.path.isdir(arg):
@@ -251,4 +226,35 @@ elif args.command == 'import':
         library_file.close()
 
 elif args.command == 'tag':
-    pass
+    library_changed = False
+    for field in args.field:
+        if field == 'track':
+            for filename, track in tracks_by_filename.items():
+                if track.actual_track_number is 0:
+                    #could not find track number, try to figure it out
+                    regex = re.search('^\d+', os.path.basename(str(track.file_object)))
+                    if regex is not None:
+                        maybe_track_number = int(regex.group())
+                        print('file {0} does not have a track number, is this track number correct? (y/n)'.format(filename))
+                        print('track {0}'.format(maybe_track_number))
+                        answer = input()
+                        if answer == 'y':
+                            track.save_new_track_number(maybe_track_number)
+                            library_changed = True
+        elif field == 'album':
+            for filename, track in tracks_by_filename.items():
+                if track.album_name is None or track.album_name == '':
+                    print('file {0} has no album name'.format(filename))
+        elif field == 'artist':
+            for filename, track in tracks_by_filename.items():
+                if track.artist is None or track.artist == '':
+                    print('file {0} has no artist'.format(filename))
+        elif field == 'title':
+            for filename, track in tracks_by_filename.items():
+                if track.title is None or track.title == '':
+                    print('file {0} has no title'.format(filename))
+
+    if library_changed:
+        library_file = open(library_filename, 'wb')
+        pickle.dump(tracks_by_filename, library_file)
+        library_file.close()

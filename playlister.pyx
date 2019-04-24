@@ -89,12 +89,6 @@ def validpathtype(arg):
     else:
         raise argparse.ArgumentTypeError('Invalid path specification')
 
-#intended usage
-#playlister [--version] [--help | -h] [--lib=<library-file-path>] <command> [<args>]
-#playlister play [--single -s] [[album | artist | track-number | track-name] [random]]...
-#playlister import [-r | --reimport] <path>
-#playlister tag [album] [artist] [track-number] [track-name]
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--version', action='version', version='playlister 1.0')
 parser.add_argument('--lib', help='location of library file')
@@ -104,7 +98,8 @@ subparsers.required = True
 
 parser_play = subparsers.add_parser('play', help='play some files')
 parser_play.add_argument('-a', '--all', help='play all items', action='store_true')
-parser_play.add_argument('aspect', nargs='+', choices=['album', 'artist', 'track', 'title', 'filename', 'album-random', 'artist-random', 'track-random', 'title-random', 'filename-random'])
+parser_play.add_argument('-t', '--test', help='test mode - print playlist only', action='store_true')
+parser_play.add_argument('order', nargs='+', help='aspect=pattern ...')
 
 parser_import = subparsers.add_parser('import', help='import additional files to library')
 parser_import.add_argument('-r', '--reimport', help='reimport files exsting in library', action='store_true')
@@ -132,18 +127,29 @@ salt = random.randint(0, 999999999)
 
 def sort_track_by_aspects(track):
     prop_list = []
-    for aspect in args.aspect:
-        if aspect.startswith('album'):
+    for order in args.order:
+        temp_arr = order.split('=')
+        aspect = temp_arr[0]
+        if aspect == 'album':
             prop = track.album_name
-        elif aspect.startswith('artist'):
+        elif aspect == 'artist':
             prop = track.artist
-        elif aspect.startswith('track'):
+        elif aspect == 'track':
             prop = str(track.actual_track_number)
-        elif aspect.startswith('title'):
+        elif aspect == 'title':
             prop = track.title
-        if aspect.endswith('random'):
-            random.seed(prop+str(salt))
-            prop_list.append(random.randint(0, 999999999))
+
+        if len(temp_arr) > 1:
+            pattern = temp_arr[1]
+            if pattern == 'random':
+                random.seed(prop+str(salt))
+                prop_list.append(random.randint(0, 999999999))
+            else:
+                reg = re.compile(pattern)
+                if reg.match(prop):
+                    prop_list.append(0)
+                else:
+                    prop_list.append(1)
         else:
             prop_list.append(prop)
     return prop_list
@@ -153,29 +159,26 @@ if args.command == 'play':
     play_list.sort(key=lambda track: str(track.file_object))
     play_list.sort(key = sort_track_by_aspects)
 
-    #for track in play_list:
-        #print (track.album_name +'-'+str(track.actual_track_number))
-
     i = 0
     current_first_prop = None
     group_end = 0
     while (args.all or group_end == 0) and i <= len(play_list):
         if i < len(play_list):
             track = play_list[i]
-            if args.aspect[0].startswith('album'):
+            if args.order[0].startswith('album'):
                 prop = track.album_name
-            elif args.aspect[0].startswith('artist'):
+            elif args.order[0].startswith('artist'):
                 prop = track.artist
-            elif args.aspect[0].startswith('track'):
+            elif args.order[0].startswith('track'):
                 prop = track.actual_track_number
-            elif args.aspect[0].startswith('title'):
+            elif args.order[0].startswith('title'):
                 prop = track.title
         else:
             prop = ''
         if current_first_prop != prop:
             if i > 0:
                 group_end = i
-                print('\nPlaying {0}\n{1}\n'.format(args.aspect[0], current_first_prop))
+                print('\nPlaying {0}\n{1}\n'.format(args.order[0], current_first_prop))
 
                 vlc_process = None
                 params = []
@@ -183,6 +186,8 @@ if args.command == 'play':
                 for track in play_list[group_start:group_end]:
                     if os.path.isfile(str(track.file_object)):
                         params.append(str(track.file_object))
+                        if args.test:
+                            print ('{0} - {1} - {2} - {3}'.format(track.artist, track.album_name, str(track.actual_track_number), track.title))
                     else:
                         #no file to play, should remove track object from master list
                         print('no file found, removing from library {0}'.format(str(track.file_object)))
@@ -191,10 +196,11 @@ if args.command == 'play':
                 if len(params) > 0:
                     params.insert(0, 'VLC')
                     params.insert(1, '--play-and-exit')
-                    try:
-                        vlc_process = subprocess.Popen(params, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    except OSError:
-                        print('unable to start VLC process. Make sure VLC is installed and added to PATH')
+                    if not args.test:
+                        try:
+                            vlc_process = subprocess.Popen(params, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        except OSError:
+                            print('unable to start VLC process. Make sure VLC is installed and added to PATH')
                 if library_changed:
                     library_file = open(library_filename, 'wb')
                     pickle.dump(tracks_by_filename, library_file)

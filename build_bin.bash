@@ -8,5 +8,5 @@ then
 elif [[ "$OSTYPE" == "darwin"* ]]
 then
   #Mac OS compile
-  gcc -Os -I /usr/local/Cellar/python/3.6.5/Frameworks/Python.framework/Versions/3.6/include/python3.6m -L /usr/local/Cellar/python/3.6.5/Frameworks/Python.framework/Versions/3.6/lib -o bin/playlister playlister.c -lpython3.6 -lpthread -lm -lutil -ldl
+  gcc -Os -I /usr/local/Cellar/python/3.7.4_1/Frameworks/Python.framework/Versions/3.7/include/python3.7m -L /usr/local/Cellar/python/3.7.4_1/Frameworks/Python.framework/Versions/3.7/lib -o bin/playlister playlister.c -lpython3.7 -lpthread -lm -lutil -ldl
 fi

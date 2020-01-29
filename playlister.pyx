@@ -15,6 +15,7 @@ class Track:
         self.title = ''
         self.album = ''
         self.track_number = 0
+        self.number_of_plays = 0
         track_number = None
         if isinstance(self.muta_file, mutagen.flac.FLAC):
             self.artist = self.muta_file.tags['ARTIST'][0]
@@ -61,6 +62,7 @@ class Track:
         state['album'] = self.album
         state['artist'] = self.artist
         state['title'] = self.title
+        state['number_of_plays'] = self.number_of_plays
         return state
 
     def __setstate__(self, state):
@@ -70,6 +72,10 @@ class Track:
         self.album = state['album']
         self.artist = state['artist']
         self.title = state['title']
+        if 'number_of_plays' in state:
+            self.number_of_plays = state['number_of_plays']
+        else:
+            self.number_of_plays = 0
 
     def save_new_track_number(self, track_number):
         if self.muta_file is None:
@@ -192,6 +198,9 @@ if args.command == 'play':
                         params.append(str(track.file_object))
                         if args.test:
                             print ('{0} - {1} - {2} - {3}'.format(track.artist, track.album, str(track.track_number), track.title))
+                        else:
+                            track.number_of_plays += 1
+                            library_changed = True
                     else:
                         #no file to play, should remove track object from master list
                         print('no file found, removing from library {0}'.format(str(track.file_object)))

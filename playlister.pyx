@@ -207,7 +207,7 @@ if args.command == 'play':
                         del tracks_by_filename[str(track.file_object)]
                         library_changed = True
                 if len(params) > 0:
-                    params.insert(0, 'VLC')
+                    params.insert(0, 'vlc')
                     params.insert(1, '--play-and-exit')
                     if not args.test:
                         try:

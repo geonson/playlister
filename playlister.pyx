@@ -37,7 +37,7 @@ class Track:
 
                 if 'TALB' in self.muta_file.tags:
                     self.album = self.muta_file.tags['TALB'][0]
-                    
+
                 if 'TRCK' in self.muta_file.tags:
                     track_number = self.muta_file.tags['TRCK'][0]
                 elif 'TPOS' in self.muta_file.tags:
@@ -52,7 +52,7 @@ class Track:
         else:
             print('tag parsing not yet supported for type {0}'.format(self.muta_file.__class__.__name__))
 
-        if track_number is not None:
+        if track_number is not None and isinstance(track_number, str):
             self.track_number = int(track_number.split('/')[0])
 
     def __getstate__(self):

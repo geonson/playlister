@@ -1,5 +1,6 @@
 #!/bin/bash
 
+mkdir -p bin
 cython --embed -3 playlister.pyx
 if [[ "$OSTYPE" == "linux-gnu" ]]
 then
@@ -9,5 +10,5 @@ then
 elif [[ "$OSTYPE" == "darwin"* ]]
 then
   #Mac OS compile
-  gcc -Os -I /usr/local/Cellar/python/3.7.4_1/Frameworks/Python.framework/Versions/3.7/include/python3.7m -L /usr/local/Cellar/python/3.7.4_1/Frameworks/Python.framework/Versions/3.7/lib -o bin/playlister playlister.c -lpython3.7 -lpthread -lm -lutil -ldl
+  gcc -Os -I ~/.pyenv/versions/3.8.3/include/python3.8 -L ~/.pyenv/versions/3.8.3/lib -o bin/playlister playlister.c -lpython3.8 -lpthread -lm -lutil -ldl
 fi

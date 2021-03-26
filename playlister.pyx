@@ -6,6 +6,7 @@ import subprocess
 import re
 import argparse
 import pickle
+import platform
 
 class Track:
     def __init__(self, file_object, muta_file):
@@ -53,7 +54,10 @@ class Track:
             print('tag parsing not yet supported for type {0}'.format(self.muta_file.__class__.__name__))
 
         if track_number is not None and isinstance(track_number, str):
-            self.track_number = int(track_number.split('/')[0])
+            try:
+                self.track_number = int(track_number.split('/')[0])
+            except ValueError:
+                print('Error reading track number from file {0}'.format(str(self.file_object)))
 
     def __getstate__(self):
         state = {}
@@ -207,7 +211,10 @@ if args.command == 'play':
                         del tracks_by_filename[str(track.file_object)]
                         library_changed = True
                 if len(params) > 0:
-                    params.insert(0, 'vlc')
+                    if platform.system() == 'Darwin':
+                        params.insert(0, 'VLC')
+                    else:
+                        params.insert(0, 'vlc')
                     params.insert(1, '--play-and-exit')
                     if not args.test:
                         try:

@@ -122,8 +122,8 @@ parser_import = subparsers.add_parser('import', help='import additional files to
 parser_import.add_argument('-r', '--reimport', help='reimport files exsting in library', action='store_true')
 parser_import.add_argument('path', type=validpathtype)
 
-parser_tag = subparsers.add_parser('tag', help="search library and attempt to fill missing tag info")
-parser_tag.add_argument('field', choices=['album', 'artist', 'track', 'title'], nargs='+')
+parser_tag = subparsers.add_parser('audit', help="search library and attempt to find incorrect tag info")
+parser_tag.add_argument('field', choices=['album', 'artist', 'track', 'title', 'type'], nargs='+')
 
 args = parser.parse_args()
 
@@ -251,36 +251,30 @@ elif args.command == 'import':
         pickle.dump(tracks_by_filename, library_file)
         library_file.close()
 
-elif args.command == 'tag':
-    library_changed = False
-    for field in args.field:
-        if field == 'track':
-            for filename, track in tracks_by_filename.items():
-                if track.track_number is 0:
+elif args.command == 'audit':
+    for filename, track in tracks_by_filename.items():
+        if track.muta_file is None:
+            track.muta_file = mutagen.File(track.file_object.absolute())
+        for field in args.field:
+            if field == 'track':
+                if track.track_number is None or track.track_number == 0:
                     #could not find track number, try to figure it out
                     regex = re.search('^\d+', os.path.basename(str(track.file_object)))
                     if regex is not None:
                         maybe_track_number = int(regex.group())
-                        print('file {0} does not have a track number, is this track number correct? (y/n)'.format(filename))
-                        print('track {0}'.format(maybe_track_number))
-                        answer = input()
-                        if answer == 'y':
-                            track.save_new_track_number(maybe_track_number)
-                            library_changed = True
-        elif field == 'album':
-            for filename, track in tracks_by_filename.items():
+                        print(f'no track number for file {filename}')
+            elif field == 'album':
                 if track.album is None or track.album == '':
-                    print('file {0} has no album name'.format(filename))
-        elif field == 'artist':
-            for filename, track in tracks_by_filename.items():
+                    print(f'no album name for file {filename}')
+            elif field == 'artist':
                 if track.artist is None or track.artist == '':
-                    print('file {0} has no artist'.format(filename))
-        elif field == 'title':
-            for filename, track in tracks_by_filename.items():
+                    print(f'no artist for file {filename}')
+            elif field == 'title':
                 if track.title is None or track.title == '':
-                    print('file {0} has no title'.format(filename))
-
-    if library_changed:
-        library_file = open(library_filename, 'wb')
-        pickle.dump(tracks_by_filename, library_file)
-        library_file.close()
+                    print(f'no title for file {filename}')
+            elif field == 'type':
+                if track.muta_file is not None and (isinstance(track.muta_file, mutagen.flac.FLAC) or isinstance(track.muta_file, mutagen.id3.ID3FileType) or isinstance(track.muta_file, mutagen.asf.ASF)):
+                    #suppoted file
+                    pass
+                else:
+                    print(f'type {track.muta_file.__class__.__name__} not yet supported for file {filename}')

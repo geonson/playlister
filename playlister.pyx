@@ -24,7 +24,7 @@ class Track:
             self.album = self.muta_file.tags['Album'][0]
             track_number = self.muta_file.tags['TRACKNUMBER'][0]
 
-        elif isinstance(self.muta_file, mutagen.id3.ID3FileType):
+        elif isinstance(self.muta_file, mutagen.id3.ID3FileType) or isinstance(self.muta_file, mutagen.wave.WAVE):
             if self.muta_file.tags is not None:
                 if 'TPE1' in self.muta_file.tags:
                     self.artist = self.muta_file.tags['TPE1'][0]
@@ -49,6 +49,16 @@ class Track:
             self.title = self.muta_file.tags['Title'][0].value
             self.album = self.muta_file.tags['WM/AlbumTitle'][0].value
             track_number = self.muta_file.tags['WM/TrackNumber'][0].value
+
+        elif isinstance(self.muta_file, mutagen.mp4.MP4):
+            if '\xa9nam' in track.muta_file.tags.keys():
+                self.title = track.muta_file.tags['\xa9nam'][0]
+            if '\xa9alb' in track.muta_file.tags.keys():
+                self.album = track.muta_file.tags['\xa9alb'][0]
+            if '\xa9ART' in track.muta_file.tags.keys():
+                self.artist = track.muta_file.tags['\xa9ART'][0]
+            if 'trkn' in track.muta_file.tags.keys():
+                track_number = track.muta_file.tags['trkn'][0][0]
 
         else:
             print('tag parsing not yet supported for type {0}'.format(self.muta_file.__class__.__name__))
@@ -273,8 +283,22 @@ elif args.command == 'audit':
                 if track.title is None or track.title == '':
                     print(f'no title for file {filename}')
             elif field == 'type':
-                if track.muta_file is not None and (isinstance(track.muta_file, mutagen.flac.FLAC) or isinstance(track.muta_file, mutagen.id3.ID3FileType) or isinstance(track.muta_file, mutagen.asf.ASF)):
+                if track.muta_file is not None and (isinstance(track.muta_file, mutagen.flac.FLAC) or \
+                                                    isinstance(track.muta_file, mutagen.id3.ID3FileType) or \
+                                                    isinstance(track.muta_file, mutagen.asf.ASF) or \
+                                                    isinstance(track.muta_file, mutagen.mp4.MP4) or \
+                                                    isinstance(track.muta_file, mutagen.wave.WAVE)):
                     #suppoted file
                     pass
                 else:
                     print(f'type {track.muta_file.__class__.__name__} not yet supported for file {filename}')
+                    #print(track.muta_file.tags.keys())
+                    #if track.muta_file is not None and isinstance(track.muta_file, mutagen.mp4.MP4):
+                    #    if '\xa9nam' in track.muta_file.tags.keys():
+                    #        print(track.muta_file.tags['\xa9nam'][0])
+                    #    if '\xa9alb' in track.muta_file.tags.keys():
+                    #        print(track.muta_file.tags['\xa9alb'][0])
+                    #    if '\xa9ART' in track.muta_file.tags.keys():
+                    #        print(track.muta_file.tags['\xa9ART'][0])
+                    #    if 'trkn' in track.muta_file.tags.keys():
+                    #        print(track.muta_file.tags['trkn'][0][0])

@@ -263,7 +263,7 @@ elif args.command == 'import':
 
 elif args.command == 'audit':
     for filename, track in tracks_by_filename.items():
-        if track.muta_file is None:
+        if track.muta_file is None and track.file_object.is_file():
             track.muta_file = mutagen.File(track.file_object.absolute())
         for field in args.field:
             if field == 'track':

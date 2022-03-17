@@ -11,5 +11,5 @@ Import media files in current directory to library data (so you can generate pla
 Play all library files, sorting by album randomly, open in VLC one album at a time:  
 `python playlister.pyx play --all album random --group-by album`
 
-For all command use instructions:
+For all command use instructions:  
 `python playlister.pyx --help`

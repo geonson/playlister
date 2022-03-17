@@ -160,6 +160,7 @@ if args.command == 'play':
             artist = track.artist
             title = track.title
             track_number = track.track_number
+            #calling eval on where argument is real insecure, either chang this to safe input, or be very careful
             where_result = eval(args.where)
             if not where_result:
                 play_list.remove(track)

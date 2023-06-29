@@ -7,6 +7,7 @@ import re
 import argparse
 import pickle
 import platform
+from glob import glob
 
 class Track:
     def __init__(self, file_object, muta_file):
@@ -246,15 +247,16 @@ if args.command == 'play':
 elif args.command == 'import':
     library_changed = False
     root_dir = Path(args.path)
-    file_list = [f for f in root_dir.glob('**/*') if f.is_file()]
+    file_list = [f for f in glob(f'{str(root_dir)}/**/*', recursive=True) if Path(f).is_file()]
     for file in file_list:
-        if args.reimport or str(file) not in tracks_by_filename:
-            muta_file = mutagen.File(file.absolute())
+        file_path = Path(file)
+        if args.reimport or str(file_path) not in tracks_by_filename:
+            muta_file = mutagen.File(file_path.absolute())
             if muta_file is not None:
-                print('importing track to library '+str(file))
+                print('importing track to library '+str(file_path))
                 #print(muta_file)
-                track = Track(file, muta_file)
-                tracks_by_filename[str(file)] = track
+                track = Track(file_path, muta_file)
+                tracks_by_filename[str(file_path)] = track
                 library_changed = True
 
     if library_changed:
